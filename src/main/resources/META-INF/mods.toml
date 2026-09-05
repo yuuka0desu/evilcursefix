@@ -1,0 +1,68 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="MIT"
+
+[[mods]]
+modId="evilcursefix"
+version="${file.jarVersion}"
+displayName="恶咒修复 (Evil Curse Fix)"
+logoFile="icon.png"
+description='''
+针对整合包「终恶重置1.3.1」(Forge 1.20.1 / 47.4.0) 错误报告的专用修复模组。
+
+修复内容：
+- 修复 EventBus 异常日志路径的 log4j MessageSupplier 类加载冲突导致的致命崩溃
+  (ReportedException: Ticking entity / LinkageError)，游戏不再因监听器异常日志故障而崩溃；
+- 修复诡厄巫法(Goety) 流浪商人宝藏地图交易的空指针异常，JEI 交易正常显示；
+- 修复原版、山樱之刃(yamazakura)、食物附魔(add_potion) 村民交易的空指针异常刷屏；
+- 修复神化(Apotheosis) 打孔配方在 JEI 计算输出时的列表越界错误；
+- 修复诡厄遗物同步蓝图时与精妙核心容器关闭逻辑互相调用造成的无限递归/栈溢出；
+- 修复佩伊洛镰刀罪火拥抱重复添加属性修饰符造成的崩溃；
+- 修复 Fallen Gems 因 Iron's Spells 网络 API 变更造成的实体 tick 崩溃；
+- 兼容 Virtual Witch Arrangement 的旧学习法术网络包引用；
+- 修复 Apotheosis 为饰品找不到对应稀有度词缀时抛异常导致的死亡掉落/实体 Tick 崩溃。
+
+所有修复均通过 Mixin 运行时注入，不改动任何第三方模组文件，移除本模组即可完全回退。
+'''
+
+[[dependencies.evilcursefix]]
+modId="forge"
+mandatory=true
+versionRange="[47,)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.evilcursefix]]
+modId="minecraft"
+mandatory=true
+versionRange="[1.20.1,1.21)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.evilcursefix]]
+modId="goety"
+mandatory=false
+versionRange="*"
+ordering="AFTER"
+side="BOTH"
+
+[[dependencies.evilcursefix]]
+modId="yamazakura"
+mandatory=false
+versionRange="*"
+ordering="AFTER"
+side="BOTH"
+
+[[dependencies.evilcursefix]]
+modId="add_potion"
+mandatory=false
+versionRange="*"
+ordering="AFTER"
+side="BOTH"
+
+[[dependencies.evilcursefix]]
+modId="apotheosis"
+mandatory=false
+versionRange="*"
+ordering="AFTER"
+side="BOTH"

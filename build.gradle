@@ -1,0 +1,103 @@
+plugins {
+    id 'net.minecraftforge.gradle' version '[6.0.16,6.2)'
+    id 'java'
+}
+
+version = mod_version
+group = 'com.example.ezfix'
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+compileJava {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+    options.encoding = 'UTF-8'
+}
+
+minecraft {
+    mappings channel: 'official', version: minecraft_version
+
+    runs {
+        client {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            property 'mixin.env.remapRefMap', 'true'
+            property 'mixin.env.refMapRemappingFile', "${buildDir}/createSrgToMcp/output.srg"
+            mods {
+                evilcursefix {
+                    source sourceSets.main
+                }
+            }
+        }
+        server {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            property 'mixin.env.remapRefMap', 'true'
+            property 'mixin.env.refMapRemappingFile', "${buildDir}/createSrgToMcp/output.srg"
+            mods {
+                evilcursefix {
+                    source sourceSets.main
+                }
+            }
+        }
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
+}
+
+dependencies {
+    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+
+    // EventBus handleException mixin target (part of the Forge userdev classpath,
+    // declared explicitly so javac can always resolve net.minecraftforge.eventbus.*)
+    compileOnly 'net.minecraftforge:eventbus:6.0.5'
+
+    // 第三方模组目标类（仅编译期解析 Mixin targets 用，不打包进产物）
+    compileOnly files('libs/goety-2.5.56.5.jar')
+    compileOnly files('libs/yamazakura-1.0.3-forge.jar')
+    compileOnly files('libs/add_potion-46.0.14.0.jar')
+    compileOnly files('libs/Apotheosis-1.20.1-7.4.6.jar')
+    compileOnly files('libs/goeticlegacy-0.4.4-early-release.jar')
+    compileOnly files('libs/irons_spellbooks-1.20.1-3.15.2.jar')
+    compileOnly files('libs/fallen_gems_affixes-1.20.1-1.3.1.jar')
+    compileOnly files('libs/PeyroScythe-Forge-1.20.1-1.3.3.jar')
+    compileOnly files('libs/ISS_VirtualWitchArrangement-Forge-1.20.1-1.0.0.jar')
+    compileOnly files('libs/L_Enders_Cataclysm-3.31.jar')
+    compileOnly files('libs/SlashBladeResharped-1.20.1-1.9.65.jar')
+    compileOnly files('libs/traveloptics-6.3.0-1.20.1.jar')
+    compileOnly files('libs/gunsmithlib_std_ammo-forge-1.20.1-tacz1.1.8-1.1.2.jar')
+    compileOnly files('libs/tcc-1.3.0-hotfix1.jar')
+    compileOnly files('libs/slashblade_useful_addon-1.2.5-forge.jar')
+    compileOnly files('libs/cataclysm-to-magic-fix-1.1.0.jar')
+    compileOnly files('libs/flame_chase_artifacts-1.1.52.jar')
+    compileOnly files('libs/spudiversity-1.1.7-forge.jar')
+    compileOnly files('libs/curios-forge-5.14.1+1.20.1.jar')
+    // 可选依赖：jar 不存在时跳过编译校验，对应修复运行时静默跳过
+    def yakumoJar = file('libs/yakumoblade-1.20.1-1.1.0-fix.jar')
+    if (yakumoJar.exists()) { compileOnly files(yakumoJar) }
+    def guardianJar = file('libs/GuardianMod-2.2.jar')
+    if (guardianJar.exists()) { compileOnly files(guardianJar) }
+    def tlmSpellJar = file('libs/touhou_little_maid_spell-1.8.2-forge+mc1.20.1-all.jar')
+    if (tlmSpellJar.exists()) { compileOnly files(tlmSpellJar) }
+
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+}
+
+jar {
+    // 排除 yakumoblade 的编译期 stub（运行时使用真实类）
+    exclude 'com/yakumosakura/yakumoblade/**'
+    manifest {
+        attributes([
+            'Specification-Title'   : mod_id,
+            'Specification-Version' : '1',
+            'Implementation-Title'  : project.name,
+            'Implementation-Version': project.version,
+            'MixinConfigs'          : 'evilcursefix.mixins.json'
+        ])
+    }
+}

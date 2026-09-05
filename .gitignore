@@ -1,0 +1,17 @@
+# Gradle
+.gradle/
+build/
+run/
+
+# 第三方依赖模组 jar（构建前需自行放入 libs/，见 README「构建前置」）
+libs/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+out/
+
+# 系统
+Thumbs.db
+.DS_Store

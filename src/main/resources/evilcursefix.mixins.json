@@ -1,0 +1,53 @@
+{
+  "required": false,
+  "package": "com.example.ezfix.mixin",
+  "plugin": "com.example.ezfix.mixin.EzfixMixinPlugin",
+  "compatibilityLevel": "JAVA_17",
+  "minVersion": "0.8",
+  "mixins": [
+    "EventBusHandleExceptionMixin",
+    "VanillaTreasureMapMixin",
+    "GoetyTreasureMapMixin",
+    "YamazakuraTradeMixin",
+    "AddPotionTradeMixin",
+    "SocketingRecipeMixin",
+    "GoeticLegacyContainerCloseMixin",
+    "PeyroSinfireModifierMixin",
+    "FallenSpellCastLinkageMixin",
+    "ApotheosisEmptyAffixMixin",
+    "GunsmithlibSpawnBoundMixin",
+    "TravelopticsRapidLaserMixin",
+    "TravelopticsSandstormParticleMixin",
+    "EntityDriveSaveNpeMixin",
+    "GoetyRobeReflectGuardMixin",
+    "TccImaginaryDamageGuardMixin",
+    "TccMetaMorphReentrancyMixin",
+    "RankHandlerRecursionGuardMixin",
+    "TravelopticsNightwardenRingMixin",
+    "FCAEffectSyncGuardMixin",
+    "SpudiversityInvisibleWaitingGuardMixin",
+    "SpudBloodFoxReflectGuardMixin",
+    "SpudAuspiciousPotatoReflectGuardMixin",
+    "SpudBuildPotatoReflectGuardMixin",
+    "SpudBlazeEndReflectGuardMixin",
+    "EzfixServerHeartbeatMixin",
+    "CuriosTagKeyCacheMixin",
+    "EzfixAttributeMapNullGuardMixin",
+    "EzfixArmorPiercingGuardMixin",
+    "EzfixSlashRecursionGuardMixin",
+    "EzfixHighfrequencyRecursionGuardMixin",
+    "EzfixHighfrequencyStarRecursionGuardMixin",
+    "GoetyOwnedNullTargetGuardMixin",
+    "GoetyWandStatsCompatMixin",
+    "DamagePerfProbeMixin"
+  ],
+  "client": [
+    "VirtualWitchLearnSpellMixin",
+    "EzfixRenderHeartbeatMixin",
+    "EzfixGuiNullPlayerGuardMixin",
+    "EzfixLightTextureNullGuardMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}
