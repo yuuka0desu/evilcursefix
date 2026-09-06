@@ -26,7 +26,12 @@ import java.util.List;
 public abstract class SocketingRecipeMixin {
 
     @Redirect(method = "m_5874_", remap = false,
-            at = @At(value = "INVOKE", target = "Ljava/util/List;set(ILjava/lang/Object;)Ljava/lang/Object;"))
+            at = @At(value = "INVOKE",
+                    target = "Ljava/util/List;set(ILjava/lang/Object;)Ljava/lang/Object;",
+                    // javap 实证：m_5874_ 内唯一的 List.set 调用（gems 打孔写入），
+                    // ordinal 显式限定避免未来版本新增调用点被误守卫。
+                    ordinal = 0,
+                    remap = false))
     private Object ezfix$guardListSet(List<Object> list, int index, Object element) {
         if (index < 0 || index >= list.size()) {
             // 越界：跳过本次 set，避免 IndexOutOfBoundsException 刷屏。

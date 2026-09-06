@@ -14,6 +14,17 @@ compileJava {
     options.encoding = 'UTF-8'
 }
 
+// 编译期 stub（yakumoblade 可选依赖的占位类）单独放 src/stub/java，
+// 仅加入 main 的 compile classpath 供 Mixin AP 校验，不进入 main 产物、
+// 不参与 runClient/runServer 的 mod 类路径，避免开发环境与真实类冲突。
+// stub 自身只引用拔刀剑事件类，直接声明依赖即可；
+// 不能 += sourceSets.main.compileClasspath（会与 compileOnly stub.output 形成循环）。
+sourceSets {
+    stub {
+        java.srcDirs = ['src/stub/java']
+    }
+}
+
 minecraft {
     mappings channel: 'official', version: minecraft_version
 
@@ -52,6 +63,11 @@ repositories {
 
 dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+
+    // 编译期 stub（可选依赖占位类），仅解析 Mixin 目标用
+    compileOnly sourceSets.stub.output
+    // stub 源集自身引用的类型（拔刀剑事件类）
+    stubCompileOnly files('libs/SlashBladeResharped-1.20.1-1.9.65.jar')
 
     // EventBus handleException mixin target (part of the Forge userdev classpath,
     // declared explicitly so javac can always resolve net.minecraftforge.eventbus.*)

@@ -45,6 +45,9 @@ public abstract class GunsmithlibSpawnBoundMixin {
             at = @At(
                     value = "INVOKE",
                     target = "Ljava/util/List;get(I)Ljava/lang/Object;",
+                    // javap 实证：spawn 内唯一的 List.get 调用（玩家列表取人），
+                    // ordinal 显式限定避免未来版本新增调用点被误守卫。
+                    ordinal = 0,
                     remap = false
             ),
             remap = false

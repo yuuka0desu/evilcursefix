@@ -37,6 +37,13 @@ public final class EzfixMonitor {
     private static final long CHECK_INTERVAL_MS = 5_000L;
     private static final long SUMMARY_INTERVAL_MS = 60_000L;
     private static final long STALL_THRESHOLD_MS = 30_000L;
+    /**
+     * 渲染线程仍活跃时的服务器卡死阈值：集成服务端按 ESC 暂停时服务器
+     * tick 停止而渲染继续，30 秒即误报"服务器卡死"。渲染活跃说明用户
+     * 大概率在暂停画面，阈值放宽到 60 秒；暂停超过 60 秒仍未恢复才告警。
+     * 专用服务器无渲染心跳（renderAlive=false），仍用 30 秒原阈值。
+     */
+    private static final long PAUSED_STALL_THRESHOLD_MS = 60_000L;
     private static final long STACK_DUMP_COOLDOWN_MS = 60_000L;
 
     private EzfixMonitor() {
@@ -68,13 +75,15 @@ public final class EzfixMonitor {
             long now = System.currentTimeMillis();
             boolean serverAlive = serverHeartbeatMillis != 0L;
             boolean renderAlive = renderHeartbeatMillis != 0L;
+            boolean renderActive = renderAlive && now - renderHeartbeatMillis < STALL_THRESHOLD_MS;
+            long serverStallThreshold = renderActive ? PAUSED_STALL_THRESHOLD_MS : STALL_THRESHOLD_MS;
 
             // ---- 卡死检测：打印全线程堆栈 ----
-            if (serverAlive && now - serverHeartbeatMillis > STALL_THRESHOLD_MS
+            if (serverAlive && now - serverHeartbeatMillis > serverStallThreshold
                     && now - lastServerStallWarn > STACK_DUMP_COOLDOWN_MS) {
                 lastServerStallWarn = now;
-                LOGGER.error("WARNING: server tick has NOT progressed for {} ms (tick={}). Dumping all thread stacks:\n{}",
-                        now - serverHeartbeatMillis, serverTicks, threadStacks());
+                LOGGER.error("WARNING: server tick has NOT progressed for {} ms (tick={}, render_active={}). Dumping all thread stacks:\n{}",
+                        now - serverHeartbeatMillis, serverTicks, renderActive, threadStacks());
             }
             if (renderAlive && now - renderHeartbeatMillis > STALL_THRESHOLD_MS
                     && now - lastRenderStallWarn > STACK_DUMP_COOLDOWN_MS) {

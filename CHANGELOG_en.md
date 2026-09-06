@@ -1,8 +1,39 @@
 # Evil Curse Fix — Changelog (English)
 
-Covers every release from **1.0.0** to **1.5.3**.
+Covers every release from **1.0.0** to **1.6.0**.
 
 ---
+
+## 1.6.0
+- **Audit fixes (medium severity)**:
+  - Replaced all 9 `ThreadLocal<Boolean>` reentrancy guards with `EzfixReentrySlot`
+    (nesting depth + 5 s TTL self-healing). Fixes two latent bugs: a cancelled reentrant
+    call used to clear the outer call's flag, and an exception mid-method left the flag
+    stuck forever (silently disabling slash effects / damage reflection until restart).
+  - `TravelopticsRapidLaserMixin` rewritten from whole-method takeover to a
+    constructor-level `@Redirect` (verified via javap: single `NEW` instruction,
+    `(EntityType, LivingEntity, 6×double, float, Level)` argument order) — the original
+    method body (rotation, spawn, side effects) is now fully preserved.
+  - `VirtualWitchLearnSpellMixin`: reset `heldSpellTime` after sending the modern packet
+    (the original `-1` reset was skipped by `ci.cancel()`, causing per-frame resends),
+    replayed the learn-success sound reflectively, cached all `Field` lookups.
+  - `EzfixMonitor`: server-stall threshold raised to 60 s while the render heartbeat is
+    alive (single-player ESC pause no longer triggers false stall alarms).
+  - `TravelopticsNightwardenRingMixin`: cached the constructor; lookup failure now logs
+    once instead of reflecting every frame.
+  - `EventBusHandleExceptionMixin` now uses `require = 1` — version drift fails loud
+    instead of silently disabling the core crash fix.
+- **Audit fixes (low severity)**:
+  - Explicit `ordinal = 0` on the `List.get`/`List.set` redirects (javap-verified single
+    call sites) in `GunsmithlibSpawnBoundMixin` and `SocketingRecipeMixin`.
+  - `EzfixMixinPlugin` now gates the starSE-package `Highfrequency` guard as well.
+  - `FCAEffectSyncGuardMixin` rethrows non-CME causes with their original type (no more
+    `RuntimeException` wrapping); `IllegalAccessException` logs once.
+  - yakumoblade compile-only stubs moved to a dedicated `src/stub` source set — excluded
+    from the jar and from dev run classpath, no more dev-environment class collision.
+  - 11 mixin targets switched from `targets` strings to `value = Class` (13 → 2 AP
+    warnings; the remaining 2 are intentional for optional jar-less dependencies).
+- javap-verified `spawnImpactParticles(Vec3)` handler signature — no change needed.
 
 ## 1.5.3
 - **Performance**: cached the reflective `Method` handles in `FCAEffectSyncGuardMixin`

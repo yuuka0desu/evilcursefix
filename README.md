@@ -94,7 +94,7 @@ spudiversity、curios、sophisticatedcore。可选依赖（yakumoblade、Guardia
 touhou_little_maid_spell）缺失时构建自动跳过对应编译校验。
 
 ```bash
-JAVA_HOME=<jdk17> gradle build   # 产物: build/libs/ezfix-1.0.0.jar
+JAVA_HOME=<jdk17> gradle build   # 产物: build/libs/evilcursefix-1.6.0.jar
 ```
 
 ## 部署

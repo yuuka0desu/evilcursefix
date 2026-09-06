@@ -22,6 +22,8 @@ public class EzfixMixinPlugin implements IMixinConfigPlugin {
             "mods.flammpfeil.slashblade.util.AttackManager";
     private static final String HIGH_FREQUENCY_CLASS =
             "com.yakumosakura.yakumoblade.registry.specialeffects.Highfrequency";
+    private static final String HIGH_FREQUENCY_STAR_CLASS =
+            "com.yakumosakura.yakumoblade.specialeffects.starSE.Highfrequency";
 
     @Override
     public void onLoad(String mixinPackage) {
@@ -39,6 +41,10 @@ public class EzfixMixinPlugin implements IMixinConfigPlugin {
         }
         if (mixinClassName.equals(MIXIN_PACKAGE + "EzfixHighfrequencyRecursionGuardMixin")) {
             return classExists(HIGH_FREQUENCY_CLASS) && classExists(ATTACK_MANAGER_CLASS);
+        }
+        if (mixinClassName.equals(MIXIN_PACKAGE + "EzfixHighfrequencyStarRecursionGuardMixin")) {
+            // 与 registry 包版本互斥的 starSE 包版本（1.3.1 实例）。
+            return classExists(HIGH_FREQUENCY_STAR_CLASS) && classExists(ATTACK_MANAGER_CLASS);
         }
         return true;
     }

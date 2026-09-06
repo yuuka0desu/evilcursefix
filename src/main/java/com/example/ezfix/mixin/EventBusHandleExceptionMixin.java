@@ -33,7 +33,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(value = EventBus.class, remap = false)
 public abstract class EventBusHandleExceptionMixin {
 
-    @Inject(method = "handleException", at = @At("HEAD"), cancellable = true, remap = false)
+    /**
+     * 本修复是模组的核心（防致命崩溃），require=1：eventbus 版本漂移导致
+     * 应用失败时启动即报错，而不是静默失效后由 defaultRequire 兜底跳过。
+     */
+    @Inject(method = "handleException", at = @At("HEAD"), cancellable = true, require = 1, remap = false)
     private void ezfix$safeHandleException(IEventBus bus, Event event, IEventListener[] listeners, int index,
                                            Throwable throwable, CallbackInfo ci) {
         ci.cancel();

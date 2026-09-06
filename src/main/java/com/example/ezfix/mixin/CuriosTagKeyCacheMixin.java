@@ -8,6 +8,7 @@ import net.minecraft.world.item.Item;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
+import top.theillusivec4.curios.mixin.CuriosImplMixinHooks;
 
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -32,7 +33,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * 修复：缓存 curios 槽位 TagKey（ConcurrentHashMap 按 ResourceLocation
  * 去重），首次创建后复用同一对象，彻底绕过 Guava intern 风暴。
  */
-@Mixin(targets = "top.theillusivec4.curios.mixin.CuriosImplMixinHooks", remap = false)
+@Mixin(value = CuriosImplMixinHooks.class, remap = false)
 public abstract class CuriosTagKeyCacheMixin {
 
     private static final ConcurrentHashMap<ResourceLocation, TagKey<Item>> EZFIX$TAG_CACHE = new ConcurrentHashMap<>();

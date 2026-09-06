@@ -15,6 +15,11 @@ import java.lang.reflect.Method;
  *   NoSuchMethodError: SpellStat WandUtil.getStats(LivingEntity, ISpell)
  *   at GoetyProvider.getSpellStats(GoetyProvider.java:383)
  *
+ * 目标类使用字符串 targets（而非 value=Class）是有意为之：
+ * touhou_little_maid_spell 是可选软依赖（build.gradle 条件编译），
+ * 用字符串引用避免编译期依赖，缺失时运行时静默跳过；
+ * 该 mixin 因此保留一条"should be specified in value"编译警告。
+ *
  * 修复：反射探测当前 goety 的 getStats 重载并适配调用——
  *   1. 优先 (LivingEntity, ISpell)（goety 2.5.56.x 存在）；
  *   2. 否则枚举含 ISpell 参数的任意 getStats 重载；

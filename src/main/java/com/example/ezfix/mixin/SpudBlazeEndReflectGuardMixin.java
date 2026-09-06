@@ -1,5 +1,7 @@
 package com.example.ezfix.mixin;
 
+import com.dinzeer.spudiversity.effect.BlazeEnd;
+import com.example.ezfix.util.EzfixReentrySlot;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -15,24 +17,24 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * （如 FastMakeEntityUtil.FastHurt 会清零 invulnerableTime）组合时
  * 可能形成无限循环。
  *
- * 修复：HEAD 线程级重入标记 + RETURN 清除，重入调用直接取消。
+ * 修复：HEAD 使用 EzfixReentrySlot（嵌套深度 + TTL 自愈），重入调用直接取消；
+ * RETURN 退出守卫；异常残留由 TTL 自愈。
  */
-@Mixin(targets = "com.dinzeer.spudiversity.effect.BlazeEnd", remap = false)
+@Mixin(value = BlazeEnd.class, remap = false)
 public abstract class SpudBlazeEndReflectGuardMixin {
 
-    private static final ThreadLocal<Boolean> EZFIX$BE_HURT_IN_FLIGHT = ThreadLocal.withInitial(() -> Boolean.FALSE);
+    private static final EzfixReentrySlot EZFIX$BE_HURT_SLOT =
+            new EzfixReentrySlot(EzfixReentrySlot.DEFAULT_TTL_MS);
 
     @Inject(method = "onLivingHurt", at = @At("HEAD"), cancellable = true, remap = false)
     private static void ezfix$skipReentrant(LivingHurtEvent event, CallbackInfo ci) {
-        if (EZFIX$BE_HURT_IN_FLIGHT.get()) {
+        if (EZFIX$BE_HURT_SLOT.enter()) {
             ci.cancel();
-            return;
         }
-        EZFIX$BE_HURT_IN_FLIGHT.set(Boolean.TRUE);
     }
 
     @Inject(method = "onLivingHurt", at = @At("RETURN"), remap = false)
     private static void ezfix$clearFlag(LivingHurtEvent event, CallbackInfo ci) {
-        EZFIX$BE_HURT_IN_FLIGHT.set(Boolean.FALSE);
+        EZFIX$BE_HURT_SLOT.exit();
     }
 }

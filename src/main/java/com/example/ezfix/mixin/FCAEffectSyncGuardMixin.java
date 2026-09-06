@@ -1,5 +1,6 @@
 package com.example.ezfix.mixin;
 
+import com.inolia_zaicek.flame_chase_artifacts.util.FCAEntityHelper;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.Entity;
@@ -29,11 +30,12 @@ import java.util.ConcurrentModificationException;
  * 注意：目标调用为 SRG 名 m_141973_（3 参数与无参两个重载），
  * handler 用反射调用以避开编译期 MCP 命名依赖，并覆盖各版本差异。
  */
-@Mixin(targets = "com.inolia_zaicek.flame_chase_artifacts.util.FCAEntityHelper", remap = false)
+@Mixin(value = FCAEntityHelper.class, remap = false)
 public abstract class FCAEffectSyncGuardMixin {
 
     private static volatile Method EZFIX$M_141973_3;
     private static volatile Method EZFIX$M_141973_0;
+    private static volatile boolean EZFIX$ACCESS_WARNED;
 
     @Redirect(
             method = "syncEffect",
@@ -57,12 +59,9 @@ public abstract class FCAEffectSyncGuardMixin {
         } catch (NoSuchMethodException e) {
             // 运行时不存在该重载（版本差异）：不做任何事
         } catch (InvocationTargetException e) {
-            if (!(e.getCause() instanceof ConcurrentModificationException)) {
-                // 非 CME 异常保持原传播语义
-                throw new RuntimeException(e.getCause());
-            }
-            // CME：属性 map 遍历期间的竞态，跳过本次同步，map 未损坏
-        } catch (IllegalAccessException ignored) {
+            rethrowUnlessCme(e.getCause());
+        } catch (IllegalAccessException e) {
+            warnAccessOnce(e);
         }
     }
 
@@ -87,11 +86,35 @@ public abstract class FCAEffectSyncGuardMixin {
         } catch (NoSuchMethodException e) {
             // 运行时不存在该重载（版本差异）：不做任何事
         } catch (InvocationTargetException e) {
-            if (!(e.getCause() instanceof ConcurrentModificationException)) {
-                throw new RuntimeException(e.getCause());
-            }
-            // CME：跳过本次同步
-        } catch (IllegalAccessException ignored) {
+            rethrowUnlessCme(e.getCause());
+        } catch (IllegalAccessException e) {
+            warnAccessOnce(e);
+        }
+    }
+
+    /**
+     * CME：属性 map 遍历期间的竞态，跳过本次同步（map 未损坏，下 tick 重试）。
+     * 其余异常保持原类型原样传播（RuntimeException/Error 直接抛出，
+     * 不再包装成 RuntimeException 改变异常链）。
+     */
+    private static void rethrowUnlessCme(Throwable cause) {
+        if (cause instanceof ConcurrentModificationException) {
+            return;
+        }
+        if (cause instanceof RuntimeException re) {
+            throw re;
+        }
+        if (cause instanceof Error err) {
+            throw err;
+        }
+        throw new RuntimeException(cause);
+    }
+
+    private static void warnAccessOnce(IllegalAccessException e) {
+        if (!EZFIX$ACCESS_WARNED) {
+            EZFIX$ACCESS_WARNED = true;
+            System.err.println("[ezfix] FCA effect sync: m_141973_ not accessible, sync skipped:");
+            e.printStackTrace(System.err);
         }
     }
 }

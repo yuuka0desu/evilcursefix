@@ -1,5 +1,7 @@
 package com.example.ezfix.mixin;
 
+import com.dinzeer.spudiversity.item.curios.BuildPotato;
+import com.example.ezfix.util.EzfixReentrySlot;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -14,24 +16,24 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * 同线程无限递归（反伤调用位于其 lambda 内，但 lambda 同步执行于
  * 处理器方法体，HEAD+RETURN 标记仍能覆盖）。
  *
- * 修复：HEAD 线程级重入标记 + RETURN 清除，重入调用直接取消。
+ * 修复：HEAD 使用 EzfixReentrySlot（嵌套深度 + TTL 自愈），重入调用直接取消；
+ * RETURN 退出守卫；异常残留由 TTL 自愈。
  */
-@Mixin(targets = "com.dinzeer.spudiversity.item.curios.BuildPotato", remap = false)
+@Mixin(value = BuildPotato.class, remap = false)
 public abstract class SpudBuildPotatoReflectGuardMixin {
 
-    private static final ThreadLocal<Boolean> EZFIX$BP_HURT_IN_FLIGHT = ThreadLocal.withInitial(() -> Boolean.FALSE);
+    private static final EzfixReentrySlot EZFIX$BP_HURT_SLOT =
+            new EzfixReentrySlot(EzfixReentrySlot.DEFAULT_TTL_MS);
 
     @Inject(method = "OnLivingHurt", at = @At("HEAD"), cancellable = true, remap = false)
     private static void ezfix$skipReentrant(LivingHurtEvent event, CallbackInfo ci) {
-        if (EZFIX$BP_HURT_IN_FLIGHT.get()) {
+        if (EZFIX$BP_HURT_SLOT.enter()) {
             ci.cancel();
-            return;
         }
-        EZFIX$BP_HURT_IN_FLIGHT.set(Boolean.TRUE);
     }
 
     @Inject(method = "OnLivingHurt", at = @At("RETURN"), remap = false)
     private static void ezfix$clearFlag(LivingHurtEvent event, CallbackInfo ci) {
-        EZFIX$BP_HURT_IN_FLIGHT.set(Boolean.FALSE);
+        EZFIX$BP_HURT_SLOT.exit();
     }
 }

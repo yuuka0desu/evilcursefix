@@ -1,5 +1,6 @@
 package com.example.ezfix.mixin;
 
+import com.Polarice3.Goety.common.entities.neutral.Owned;
 import net.minecraft.world.entity.Entity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -17,7 +18,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * 调用 Owned 的 canAttack（m_7307_），Owned 内部对 null 目标直接转发给
  * 父类方法导致 NPE。此处入口拦截 null 目标并返回 false（不可攻击）。
  */
-@Mixin(targets = "com.Polarice3.Goety.common.entities.neutral.Owned", remap = false)
+@Mixin(value = Owned.class, remap = false)
 public abstract class GoetyOwnedNullTargetGuardMixin {
 
     @Inject(method = "m_7307_", at = @At("HEAD"), cancellable = true, remap = false)
