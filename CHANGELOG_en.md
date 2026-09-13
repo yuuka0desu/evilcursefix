@@ -1,8 +1,35 @@
 # Evil Curse Fix — Changelog (English)
 
-Covers every release from **1.0.0** to **1.6.1**.
+Covers every release from **1.0.0** to **1.6.2**.
 
 ---
+
+## 1.6.2
+- **Fixed the "save and quit hangs forever" deadlock** (runtime-log confirmed on the
+  F:\MC instance, 2026-09-13):
+  - **Symptom**: after clicking "Save and Quit to Title" (often right after pausing),
+    the client kept rendering normally while the integrated server thread stayed parked
+    forever in `runServer → waitUntilNextTick → managedBlock → waitForTasks (m_5667_)`;
+    the server tick froze, `stopServer` was never called, and the client's
+    `clearLevel` wait-for-stop loop never finished — the quit became permanent,
+    with `ModernFix integrated server watchdog` reporting the same stall
+    (40 s → 164 s and counting).
+  - **Root cause**: ModernFix's `perf.fix_loop_spin_waiting` mixin
+    (`@Mixin(priority = 500)`) overwrites `MinecraftServer.m_5667_` (waitForTasks) and
+    replaces the wait with `LockSupport.parkNanos("waiting for tasks",
+    nextTickTime * 1e6 - now)` — "sleep until the next tick deadline". Once
+    `nextTickTime` stops advancing (pause/quit state combination), the park becomes
+    permanent. This was the only mod in the pack touching that call path
+    (verified by scanning all candidate mod jars for `m_18701_`/`waitUntilNextTick`
+    references — ModernFix alone).
+  - **Workaround**: `EzfixNeutralizeModernFixSpinWaitMixin` (`@Mixin(priority = 1500)`,
+    applied after ModernFix) cancels the ModernFix implementation at `HEAD` of
+    `m_5667_` and substitutes a **bounded 1 ms park**. A bounded wait can never
+    sleep forever; wake-up frequency (1000/s) is far above the 20/s tick rate and
+    costs the same order of CPU as the original vanilla path.
+  - Applied only when ModernFix is present (mixin-plugin class check); when absent,
+    `require = 0` skips it and the vanilla inherited implementation stays in use.
+    ModernFix's other optimizations are unaffected.
 
 ## 1.6.1
 - **Fixed `GoetyWandStatsCompatMixin` never applying** (runtime-log confirmed):

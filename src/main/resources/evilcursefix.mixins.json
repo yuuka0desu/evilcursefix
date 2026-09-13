@@ -39,6 +39,7 @@
     "EzfixHighfrequencyStarRecursionGuardMixin",
     "GoetyOwnedNullTargetGuardMixin",
     "GoetyWandStatsCompatMixin",
+    "EzfixNeutralizeModernFixSpinWaitMixin",
     "DamagePerfProbeMixin"
   ],
   "client": [

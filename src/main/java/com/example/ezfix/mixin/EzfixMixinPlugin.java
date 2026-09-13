@@ -24,6 +24,9 @@ public class EzfixMixinPlugin implements IMixinConfigPlugin {
             "com.yakumosakura.yakumoblade.registry.specialeffects.Highfrequency";
     private static final String HIGH_FREQUENCY_STAR_CLASS =
             "com.yakumosakura.yakumoblade.specialeffects.starSE.Highfrequency";
+    /** ModernFix 主类；该模组存在时才应用"退出挂起中和"覆盖 */
+    private static final String MODERNFIX_CLASS =
+            "org.embeddedt.modernfix.ModernFix";
 
     @Override
     public void onLoad(String mixinPackage) {
@@ -45,6 +48,11 @@ public class EzfixMixinPlugin implements IMixinConfigPlugin {
         if (mixinClassName.equals(MIXIN_PACKAGE + "EzfixHighfrequencyStarRecursionGuardMixin")) {
             // 与 registry 包版本互斥的 starSE 包版本（1.3.1 实例）。
             return classExists(HIGH_FREQUENCY_STAR_CLASS) && classExists(ATTACK_MANAGER_CLASS);
+        }
+        if (mixinClassName.equals(MIXIN_PACKAGE + "EzfixNeutralizeModernFixSpinWaitMixin")) {
+            // 仅在装了 ModernFix 的实例上应用（其 fix_loop_spin_waiting 会覆盖
+            // MinecraftServer.m_5667_；缺席时目标方法不存在，require=0 也会跳过）。
+            return classExists(MODERNFIX_CLASS);
         }
         return true;
     }
