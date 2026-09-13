@@ -20,6 +20,10 @@ import java.lang.reflect.Method;
  * 用字符串引用避免编译期依赖，缺失时运行时静默跳过；
  * 该 mixin 因此保留一条"should be specified in value"编译警告。
  *
+ * 注意：目标方法 getSpellStats 是实例方法，Redirect 处理器必须同为
+ * 实例方法（1.5.2~1.6.0 误写为 static，触发 "static modifier does not
+ * match target" 注入失败，本修复实际从未生效——运行时日志实证）。
+ *
  * 修复：反射探测当前 goety 的 getStats 重载并适配调用——
  *   1. 优先 (LivingEntity, ISpell)（goety 2.5.56.x 存在）；
  *   2. 否则枚举含 ISpell 参数的任意 getStats 重载；
@@ -41,7 +45,7 @@ public abstract class GoetyWandStatsCompatMixin {
             require = 0,
             remap = false
     )
-    private static SpellStat ezfix$compatGetStats(LivingEntity entity, ISpell spell) {
+    private SpellStat ezfix$compatGetStats(LivingEntity entity, ISpell spell) {
         try {
             Method exact = EZFIX$GET_STATS_EXACT;
             if (exact == null) {

@@ -1,39 +1,99 @@
 # Evil Curse Fix — Changelog (English)
 
-Covers every release from **1.0.0** to **1.6.0**.
+Covers every release from **1.0.0** to **1.6.1**.
 
 ---
 
-## 1.6.0
-- **Audit fixes (medium severity)**:
-  - Replaced all 9 `ThreadLocal<Boolean>` reentrancy guards with `EzfixReentrySlot`
-    (nesting depth + 5 s TTL self-healing). Fixes two latent bugs: a cancelled reentrant
-    call used to clear the outer call's flag, and an exception mid-method left the flag
-    stuck forever (silently disabling slash effects / damage reflection until restart).
-  - `TravelopticsRapidLaserMixin` rewritten from whole-method takeover to a
-    constructor-level `@Redirect` (verified via javap: single `NEW` instruction,
-    `(EntityType, LivingEntity, 6×double, float, Level)` argument order) — the original
-    method body (rotation, spawn, side effects) is now fully preserved.
-  - `VirtualWitchLearnSpellMixin`: reset `heldSpellTime` after sending the modern packet
-    (the original `-1` reset was skipped by `ci.cancel()`, causing per-frame resends),
-    replayed the learn-success sound reflectively, cached all `Field` lookups.
-  - `EzfixMonitor`: server-stall threshold raised to 60 s while the render heartbeat is
-    alive (single-player ESC pause no longer triggers false stall alarms).
-  - `TravelopticsNightwardenRingMixin`: cached the constructor; lookup failure now logs
-    once instead of reflecting every frame.
-  - `EventBusHandleExceptionMixin` now uses `require = 1` — version drift fails loud
-    instead of silently disabling the core crash fix.
-- **Audit fixes (low severity)**:
-  - Explicit `ordinal = 0` on the `List.get`/`List.set` redirects (javap-verified single
-    call sites) in `GunsmithlibSpawnBoundMixin` and `SocketingRecipeMixin`.
-  - `EzfixMixinPlugin` now gates the starSE-package `Highfrequency` guard as well.
-  - `FCAEffectSyncGuardMixin` rethrows non-CME causes with their original type (no more
-    `RuntimeException` wrapping); `IllegalAccessException` logs once.
-  - yakumoblade compile-only stubs moved to a dedicated `src/stub` source set — excluded
-    from the jar and from dev run classpath, no more dev-environment class collision.
-  - 11 mixin targets switched from `targets` strings to `value = Class` (13 → 2 AP
-    warnings; the remaining 2 are intentional for optional jar-less dependencies).
-- javap-verified `spawnImpactParticles(Vec3)` handler signature — no change needed.
+## 1.6.1
+- **Fixed `GoetyWandStatsCompatMixin` never applying** (runtime-log confirmed):
+  the `@Redirect` handler was declared `static` while the target method
+  `GoetyProvider.getSpellStats` is an instance method, so Mixin rejected the injection
+  with `InvalidInjectionException: 'static' modifier of handler method does not match
+  target` and — because of `defaultRequire: 0` — silently skipped it. The 1.5.2
+  Touhou-Little-Maid-Spell crash fix had therefore never actually been active.
+  - Handler changed to an instance method (javap-verified:
+    `getSpellStats(EntityMaid, ISpell)` is non-static; the redirect target
+    `WandUtil.getStats(LivingEntity, ISpell)` call site matches exactly).
+- Known-log note: the watchdog stall warning seen on world load (tick=1, ~35 s) is the
+  diagnostics working as designed during long loading spikes — the game continued
+  normally afterwards; no action needed.
+
+## 1.6.0 — Code Audit Release
+
+**Overview.** A full audit of all 39 mixins was performed (including bytecode
+verification of every injection target via `javap`). All medium- and low-severity
+findings were fixed. Behavior for the supported modpack (终恶重置 1.3.1,
+Forge 1.20.1 / 47.4.0) is unchanged; robustness and compatibility across version
+drift are improved.
+
+### Medium-severity fixes
+
+- **Reentrancy guards hardened (9 mixins).** All `ThreadLocal<Boolean>` flags were
+  replaced with the new `EzfixReentrySlot` (nesting depth + 5 s TTL self-healing).
+  This fixes two latent bugs in `RankHandlerRecursionGuardMixin`,
+  `SpudiversityInvisibleWaitingGuardMixin`, the four Spud reflect guards
+  (BloodFox / AuspiciousPotato / BuildPotato / BlazeEnd), `EzfixSlashRecursionGuardMixin`,
+  and both `EzfixHighfrequency*RecursionGuardMixin`:
+  - a cancelled reentrant call previously cleared the outer call's flag (breaking
+    the nesting protection), and
+  - an exception thrown mid-method left the flag stuck forever — silently disabling
+    slash effects or damage reflection on the server thread until restart.
+  Stale flags now heal automatically within 5 seconds.
+
+- **Traveloptics rapid laser: constructor-level redirect.** `TravelopticsRapidLaserMixin`
+  no longer takes over the whole `spawnLaserBeam` method. It now redirects only the
+  `Laser_Beam_Entity` constructor call (javap-verified: a single `NEW` instruction,
+  `(EntityType, LivingEntity, 6×double, float, Level)` argument order). The original
+  method body — rotation setup, entity registration, and any other side effects —
+  is fully preserved. Old cataclysm builds are forwarded unchanged; new builds are
+  adapted to `(EntityType, LivingEntity, x, y, z, Vec3, float, Level)`. Constructors
+  are resolved once and cached.
+
+- **Virtual Witch learn-spell: per-frame resend fixed.** javap showed that
+  `ci.cancel()` skipped the original `heldSpellTime = -1` reset after the removed
+  `ServerboundLearnSpell` allocation, which caused the modern learn packet to be
+  re-sent every frame while holding. The handler now resets `heldSpellTime` itself
+  (restoring the original semantics), replays the learn-success sound
+  (`LEARN_ELDRITCH_SPELL`) reflectively, and caches all `Field`/`Method` lookups.
+
+- **Watchdog: pause no longer looks like a stall.** `EzfixMonitor` now raises the
+  server-stall threshold from 30 s to 60 s while the render heartbeat is alive
+  (single-player ESC pause stops the server tick but not rendering). Dedicated
+  servers (no render heartbeat) keep the original 30 s threshold.
+
+- **Nightwarden ring particle: cached constructor.** `TravelopticsNightwardenRingMixin`
+  caches the `CompatRingData` constructor; a lookup failure logs once instead of
+  reflecting on every tick.
+
+- **Core crash fix now fails loud.** `EventBusHandleExceptionMixin` (the EventBus
+  log4j `MessageSupplier` linkage crash fix) now uses `require = 1`: if a future
+  eventbus version changes the method signature, the mismatch is reported at
+  startup instead of being silently skipped by `defaultRequire: 0`.
+
+### Low-severity fixes
+
+- `GunsmithlibSpawnBoundMixin` and `SocketingRecipeMixin`: explicit `ordinal = 0`
+  on the `List.get` / `List.set` redirects (javap-verified single call sites),
+  so future added call sites cannot be accidentally guarded.
+- `EzfixMixinPlugin` now gates the starSE-package `Highfrequency` guard as well.
+- `FCAEffectSyncGuardMixin`: non-CME causes are rethrown with their original type
+  (no more `RuntimeException` wrapping that broke the exception chain);
+  `IllegalAccessException` logs once instead of being silently swallowed.
+- yakumoblade compile-only stubs moved to a dedicated `src/stub` source set:
+  excluded from the built jar and from the dev run classpath (no more
+  dev-environment collision with the real classes).
+- 11 mixin targets switched from `targets` strings to `value = Class`, reducing
+  annotation-processor warnings from 13 to 2. The remaining 2 are intentional:
+  `time_slow` and `touhou_little_maid_spell` are optional dependencies whose jars
+  are not required for compilation.
+
+### Verification
+
+- `spawnImpactParticles(Vec3)` handler signature confirmed correct via javap —
+  no change needed.
+- `gradlew build` passes: 0 errors, 2 intentional warnings.
+- Built jar verified: no `com/yakumosakura` entries, `EzfixReentrySlot` present,
+  all 39 mixins packaged.
 
 ## 1.5.3
 - **Performance**: cached the reflective `Method` handles in `FCAEffectSyncGuardMixin`
