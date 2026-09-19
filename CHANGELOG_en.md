@@ -1,8 +1,37 @@
 # Evil Curse Fix — Changelog (English)
 
-Covers every release from **1.0.0** to **1.6.2**.
+Covers every release from **1.0.0** to **1.6.3**.
 
 ---
+
+## 1.6.3
+- **Fixed the Curios TagKey storm that freezes the render thread** (the 1.4.11 fix
+  was ineffective — proven by a 2026-09-19 watchdog thread dump):
+  - **Symptom**: render thread stuck RUNNABLE at
+    `CuriosImplMixinHooks.lambda$static$9` → `new ResourceLocation` →
+    `ItemTags.create` → `TagKey.create` → Guava `Interner.intern`, reached from
+    `CuriosApi.getItemStackSlots` ← `ApothicCurios` ← `LootCategory.forItem`.
+    FPS collapses and the game stops responding.
+  - **Why 1.4.11–1.6.2 didn't help**: the cache existed, but its key was the
+    freshly-constructed `ResourceLocation` instance. `ConcurrentHashMap.get` with a
+    brand-new key object hashes to a different lookup and always missed — the cache
+    was effectively dead code. The redirect was also declared with `require = 0`,
+    so a non-match was skipped silently (zero log entries for that mixin).
+  - **Fix (two layers)**:
+    - **A** — `ItemTags.create` redirect now keys on `"namespace:path"` **strings**
+      instead of `ResourceLocation` instances, so lookups actually hit.
+    - **B** — new: `getItemStackSlots(ItemStack, boolean)` is memoised per item ID
+      (`HEAD` returns the cached map, `RETURN` stores it). On a hit, the whole
+      `lambda$static$9` path is skipped — no `ResourceLocation` allocation and no
+      Guava interning at all. Items are cached by registry name; results depend only
+      on item type and slot definitions (fixed after registration), so this is safe.
+- **Full injection-point re-verification** against the live instance's 332 mods
+  (37 target classes checked): 29 confirmed present, 4 are Forge/Minecraft core
+  classes (expected), `yakumoblade registry.Highfrequency` absent while the `starSE`
+  variant is present (the mutually-exclusive guards handle this by design), and
+  `VirtualWitchArrangement` / `time_slow` are simply not installed — both are
+  optional dependencies whose guards skip silently, matching the runtime log.
+  No further version mismatches found.
 
 ## 1.6.2
 - **Fixed the "save and quit hangs forever" deadlock** (runtime-log confirmed on the
