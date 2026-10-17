@@ -1,8 +1,39 @@
 # Evil Curse Fix — Changelog (English)
 
-Covers every release from **1.0.0** to **1.6.4**.
+Covers every release from **1.0.0** to **1.6.7**.
 
 ---
+
+## 1.6.7 — Fork Merge Release
+
+Merged the three fixes that existed only in the external **1.6.6** fork (which was
+branched from our 1.6.3 — verified by comparing class sets: it contains our
+`EzfixReentrySlot`, `EzfixNeutralizeModernFixSpinWaitMixin` and the rewritten
+`CuriosTagKeyCacheMixin`, but **not** our 1.6.4 AttributeMap fix).
+
+### Merged fixes
+- **TCC "真我" (ZhenWo) death-protection recursion** — two complementary guards:
+  - `TccZhenWoStackGuardMixin` → `com.xlxyvergil.tcc.util.ZhenWoGuard#canPreventDeath`
+  - `TccZhenWoInternalGuardMixin` → `com.xlxyvergil.tcc.items.curios.bound.ZhenWo#canPreventDeath`
+  - Both make non-player entities return `false` immediately. "真我" is a
+    player-only curio, but the original code ran a Curios inventory lookup for
+    *any* `LivingEntity`; combined with Ice & Fire dragon tick callbacks that
+    re-enter the hurt chain, this produced a `StackOverflowError`.
+- **PickablePets `pets.dat` save crash** — `PickablePetsSaveGuardMixin` redirects
+  `CachedPets.save(path)` to retry up to 8 times with increasing back-off
+  (10→80 ms), covering transient Windows file locks (antivirus, backups,
+  unflushed previous write). If all retries fail it logs once and skips the save
+  (the data stays in memory and the next tick retries) instead of letting an
+  `IOException` escape into the `ServerLevel` tick chain.
+
+### Hardening over the fork version
+- The fork declared all three injections with `require = 1`, which turns any
+  target mismatch into a **startup crash**. All are now `require = 0`.
+- The fork's TCC guards do not compile against tcc **1.3.0** (the version in this
+  pack) because `ZhenWo` / `ZhenWoGuard` only exist in tcc **1.4.16+**. They are
+  now marked `@Pseudo` (target may be absent) and gated by class-existence checks
+  in `EzfixMixinPlugin`, so the mod builds and runs correctly on **both** tcc
+  versions — applying the guard on 1.4.16+ and skipping silently on 1.3.0.
 
 ## 1.6.4
 - **Fixed `ConcurrentModificationException` in `AttributeMap.getInstance`** (client

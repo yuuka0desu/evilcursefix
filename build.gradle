@@ -64,9 +64,11 @@ repositories {
 dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
 
-    // 编译期 stub（可选依赖占位类），仅解析 Mixin 目标用
+    // 编译期 stub（可选依赖的占位类），仅解析 Mixin 目标用
     compileOnly sourceSets.stub.output
-    // stub 源集自身引用的类型（拔刀剑事件类）
+    // stub 源集自身引用的类型：拔刀剑事件类。
+    // MC 类型（LivingEntity 等）由 stub 源集继承 minecraft 依赖提供，
+    // 见下方 project.afterEvaluate 中的 stubCompileOnly 声明。
     stubCompileOnly files('libs/SlashBladeResharped-1.20.1-1.9.65.jar')
 
     // EventBus handleException mixin target (part of the Forge userdev classpath,
@@ -92,6 +94,9 @@ dependencies {
     compileOnly files('libs/cataclysm-to-magic-fix-1.1.0.jar')
     compileOnly files('libs/flame_chase_artifacts-1.1.52.jar')
     compileOnly files('libs/spudiversity-1.1.7-forge.jar')
+    // 可选依赖：PickablePets（pets.dat 保存重试守卫）；jar 不存在时跳过编译校验
+    def pickablePetsJar = file('libs/PickablePets-1.2.4+1.20.1-forge.jar')
+    if (pickablePetsJar.exists()) { compileOnly files(pickablePetsJar) }
     compileOnly files('libs/curios-forge-5.14.1+1.20.1.jar')
     // 可选依赖：jar 不存在时跳过编译校验，对应修复运行时静默跳过
     def yakumoJar = file('libs/yakumoblade-1.20.1-1.1.0-fix.jar')
@@ -105,7 +110,7 @@ dependencies {
 }
 
 jar {
-    // 排除 yakumoblade 的编译期 stub（运行时使用真实类）
+    // 排除编译期 stub（运行时使用真实类）
     exclude 'com/yakumosakura/yakumoblade/**'
     manifest {
         attributes([

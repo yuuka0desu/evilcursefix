@@ -27,6 +27,14 @@ public class EzfixMixinPlugin implements IMixinConfigPlugin {
     /** ModernFix 主类；该模组存在时才应用"退出挂起中和"覆盖 */
     private static final String MODERNFIX_CLASS =
             "org.embeddedt.modernfix.ModernFix";
+    /** tcc「真我」相关类（1.4.16+ 才有；1.3.0 无此类） */
+    private static final String TCC_ZHENWO_GUARD_CLASS =
+            "com.xlxyvergil.tcc.util.ZhenWoGuard";
+    private static final String TCC_ZHENWO_CLASS =
+            "com.xlxyvergil.tcc.items.curios.bound.ZhenWo";
+    /** PickablePets 主类 */
+    private static final String PICKABLE_PETS_CLASS =
+            "com.shiftthedev.pickablepets.PickablePets";
 
     @Override
     public void onLoad(String mixinPackage) {
@@ -53,6 +61,17 @@ public class EzfixMixinPlugin implements IMixinConfigPlugin {
             // 仅在装了 ModernFix 的实例上应用（其 fix_loop_spin_waiting 会覆盖
             // MinecraftServer.m_5667_；缺席时目标方法不存在，require=0 也会跳过）。
             return classExists(MODERNFIX_CLASS);
+        }
+        // ---- 以下为跨实例版本差异守卫：目标类不存在时静默跳过 ----
+        // tcc「真我」仅 1.4.16+ 有 ZhenWo/ZhenWoGuard；1.3.0 实例无此类。
+        if (mixinClassName.equals(MIXIN_PACKAGE + "TccZhenWoStackGuardMixin")) {
+            return classExists(TCC_ZHENWO_GUARD_CLASS);
+        }
+        if (mixinClassName.equals(MIXIN_PACKAGE + "TccZhenWoInternalGuardMixin")) {
+            return classExists(TCC_ZHENWO_CLASS);
+        }
+        if (mixinClassName.equals(MIXIN_PACKAGE + "PickablePetsSaveGuardMixin")) {
+            return classExists(PICKABLE_PETS_CLASS);
         }
         return true;
     }
