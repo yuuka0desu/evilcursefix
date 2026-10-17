@@ -89,7 +89,15 @@ dependencies {
     compileOnly files('libs/SlashBladeResharped-1.20.1-1.9.65.jar')
     compileOnly files('libs/traveloptics-6.3.0-1.20.1.jar')
     compileOnly files('libs/gunsmithlib_std_ammo-forge-1.20.1-tacz1.1.8-1.1.2.jar')
-    compileOnly files('libs/tcc-1.3.0-hotfix1.jar')
+    // tcc 编译基线：1.4.16（含 ZhenWo / ZhenWoGuard，用于校验 TCC 修复的注入签名）。
+    // 1.3.0 无这些类；两个 TCC mixin 使用字符串 targets + require=0，
+    // 故在 1.3.0 实例上运行时静默跳过，不影响启动。
+    def tccNewJar = file('libs/tcc-1.4.16.jar')
+    if (tccNewJar.exists()) {
+        compileOnly files(tccNewJar)
+    } else {
+        compileOnly files('libs/tcc-1.3.0-hotfix1.jar')
+    }
     compileOnly files('libs/slashblade_useful_addon-1.2.5-forge.jar')
     compileOnly files('libs/cataclysm-to-magic-fix-1.1.0.jar')
     compileOnly files('libs/flame_chase_artifacts-1.1.52.jar')

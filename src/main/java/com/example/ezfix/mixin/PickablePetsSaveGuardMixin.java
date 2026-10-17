@@ -30,8 +30,20 @@ import java.nio.file.Path;
 @Mixin(targets = "com.shiftthedev.pickablepets.PickablePets", remap = false)
 public abstract class PickablePetsSaveGuardMixin {
 
+    /**
+     * 重试次数与总等待上限。
+     *
+     * 该方法由 LifecycleEvent.ServerLevelState（世界加载/保存）触发，**不是每 tick**，
+     * 但仍运行在服务器线程上——阻塞会直接表现为卡顿。
+     * 因此把总等待严格限制在 50ms 内（3 次尝试，间隔 10ms / 20ms），
+     * 足以覆盖"杀毒软件短暂占用"这类瞬时锁，又不会造成可感知的停顿。
+     * 超过后跳过本次保存（数据仍在内存，下次保存事件会重试）。
+     */
     @Unique
-    private static final int EZFIX$MAX_RETRIES = 8;
+    private static final int EZFIX$MAX_RETRIES = 3;
+
+    @Unique
+    private static final long EZFIX$RETRY_DELAY_BASE_MS = 10L;
 
     @Unique
     private static volatile boolean EZFIX$SAVE_FAIL_WARNED = false;
@@ -59,8 +71,11 @@ public abstract class PickablePetsSaveGuardMixin {
                     throw t;
                 }
                 last = io;
+                if (attempt == EZFIX$MAX_RETRIES) {
+                    break;   // 最后一次失败后不再等待
+                }
                 try {
-                    Thread.sleep(10L * attempt);
+                    Thread.sleep(EZFIX$RETRY_DELAY_BASE_MS * attempt);
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
                     break;
@@ -70,7 +85,7 @@ public abstract class PickablePetsSaveGuardMixin {
         if (!EZFIX$SAVE_FAIL_WARNED) {
             EZFIX$SAVE_FAIL_WARNED = true;
             System.err.println("[ezfix] PickablePets pets.dat save failed after "
-                    + EZFIX$MAX_RETRIES + " attempts; skipping this save (will retry next tick): " + path);
+                    + EZFIX$MAX_RETRIES + " attempts; skipping this save (will retry on next world save): " + path);
             if (last != null) {
                 last.printStackTrace(System.err);
             }

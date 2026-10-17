@@ -1,8 +1,73 @@
 # Evil Curse Fix — Changelog (English)
 
-Covers every release from **1.0.0** to **1.6.7**.
+Covers every release from **1.0.0** to **1.6.9**.
 
 ---
+
+## 1.6.9 — Audit Follow-up
+
+Second full audit pass (44 mixins, 5 helpers, 72 injection points; 28 injection
+targets bytecode-verified against the real mod jars — 27 matched, 1 expected
+absence handled by the mixin plugin).
+
+### Fixed
+- **`EzfixAttributeMapNullGuardMixin` still declared `@Mixin(value = AttributeMap.class)`**
+  — the same pre-load hazard that broke Android startup in 1.6.7
+  (`MixinTargetAlreadyLoadedException: item.Item was loaded too early`, caused by
+  AttributeMap's resolution chain pulling `Item` in ahead of `tact`'s accessor
+  mixin). Now uses `@Pseudo` + string `targets`, matching the 1.6.8 fix applied
+  to the sibling mixin.
+- **Removed the remaining `AttributeMap.class` literal** inside
+  `ezfix$supplierMissing()` — the reflective lookup now resolves the class by
+  name (`Class.forName(..., false, loader)`), so no class literal can trigger
+  early loading at init time.
+- **`PickablePetsSaveGuardMixin` no longer blocks the server thread for long**:
+  retries reduced from 8 (worst case ~360 ms of `Thread.sleep`) to 3 attempts
+  with 10 ms / 20 ms back-off — total stall capped at 30 ms. The save hook is
+  `LifecycleEvent.ServerLevelState` (world load/save), not a per-tick path, but
+  it still runs on the server thread, so a hard cap matters.
+
+### Audit findings left as-is (with rationale)
+- `EzfixArmorPiercingGuardMixin` / `GoetyRobeReflectGuardMixin` still use
+  `ThreadLocal<Boolean>`, but both wrap their reentrant call in
+  `Redirect + try/finally`, so flags cannot leak on exception. Their risk is
+  limited to nested-entity false positives, acceptable for fire-reflect and
+  armor-piercing chains.
+- `EventBusHandleExceptionMixin` keeps `require = 1` deliberately: it guards the
+  fatal EventBus logging crash, and a silent skip would be worse than a loud
+  failure at startup.
+- 15 mixins have `HEAD` without `RETURN` by design (single-point cancellable
+  null guards); none carry state that needs cleanup.
+
+## 1.6.8
+
+- **Android startup fix**: `EzfixAttributeMapConcurrentModificationMixin` now
+  uses `@Pseudo` + string `targets` so Mixin no longer pre-loads `AttributeMap`
+  during the prepare phase. Its resolution chain used to pull
+  `net.minecraft.world.item.Item` into the class loader ahead of
+  `tact.mixins.json:ItemAccessor`, which then threw
+  `MixinTargetAlreadyLoadedException ... Item was loaded too early` → FATAL on
+  Zalith Launcher / Mio on Android (desktop happened to be unaffected because of
+  different mixin prep ordering). 1.6.7 with this mixin was unlaunchable on mobile.
+- **TCC "真我" barrier guards retargeted to real methods.** The 1.6.6/1.6.7
+  versions targeted `canPreventDeath`, which **does not exist** in tcc 1.4.x —
+  `ZhenWoGuard` only has `isInsideActiveBarrier`, and `ZhenWo` only has
+  `isInsideActiveBarrier` / `isActiveBarrierWearer`. Those guards were dead code.
+  Now:
+  - `TccZhenWoStackGuardMixin` → `ZhenWoGuard.isInsideActiveBarrier(LivingEntity)Z`
+  - `TccZhenWoInternalGuardMixin` → `ZhenWo.isActiveBarrierWearer(LivingEntity,Vec3,D)Z`
+  Both bytecode-verified against `tcc-1.4.16.jar`.
+- **Reentrancy guard uses entity-UUID deduplication** (`EzfixEntityReentryGuard`),
+  not a thread-level `Boolean`. A thread-level flag would have rejected the
+  *legitimate* nesting "judge entity A, then judge entity B" and silently
+  disabled the barrier for B. Only "judging A, and re-entering A" is a real loop.
+  Shared state lives in `TccZhenWoBarrierGuard` (outside the mixin package)
+  because `@Unique` fields cannot be shared across two mixins.
+- **`TccMetaMorphReentrancyMixin` path fixed**: tcc moved `MetaMorph` from
+  `items.curios` to `items.curios.bound` in 1.4.x, which is why the runtime log
+  said `MetaMorph was not found`. Now uses string targets + `require = 0`.
+- **Build now compiles against `tcc-1.4.16.jar`** (in `libs/`), so TCC injection
+  signatures are verified at compile time instead of assumed.
 
 ## 1.6.7 — Fork Merge Release
 

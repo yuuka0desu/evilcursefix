@@ -2,9 +2,9 @@ package com.example.ezfix.mixin;
 
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
-import net.minecraft.world.entity.ai.attributes.AttributeMap;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
@@ -21,8 +21,17 @@ import java.util.UUID;
  *
  * 供应商字段通过反射读取（SRG 名 f_22141_），避免 @Shadow 对
  * 编译类路径 MCP 名的依赖；读取失败时保持原行为（不拦截）。
+ *
+ * 注解形式与 1.6.8 移动端修复保持一致：@Pseudo + 字符串 targets。
+ * 原因见 EzfixAttributeMapConcurrentModificationMixin：以 Class 字面量声明
+ * 目标会让 Mixin 在 prepare 阶段预加载 AttributeMap，其解析链会顺带把
+ * net.minecraft.world.item.Item 提前拉进类加载器，抢在 tact 等模组的
+ * accessor mixin 之前，导致 Android 启动抛
+ *   MixinTargetAlreadyLoadedException: ... Item was loaded too early  → FATAL。
+ * 二者目标是同一个类，必须采用同一防护形式。
  */
-@Mixin(value = AttributeMap.class, remap = false)
+@Pseudo
+@Mixin(targets = "net.minecraft.world.entity.ai.attributes.AttributeMap", remap = false)
 public abstract class EzfixAttributeMapNullGuardMixin {
 
     private static volatile Field EZFIX$SUPPLIER_FIELD;
@@ -31,7 +40,13 @@ public abstract class EzfixAttributeMapNullGuardMixin {
         try {
             Field f = EZFIX$SUPPLIER_FIELD;
             if (f == null) {
-                f = AttributeMap.class.getDeclaredField("f_22141_");
+                // 不用 AttributeMap.class 字面量：那会在类初始化期触发目标类加载，
+                // 与本 mixin 的 @Pseudo 防预加载目的相悖。改为按类名反射获取，
+                // 此时目标类必然已加载（本 mixin 已应用在它身上）。
+                Class<?> target = Class.forName(
+                        "net.minecraft.world.entity.ai.attributes.AttributeMap",
+                        false, this.getClass().getClassLoader());
+                f = target.getDeclaredField("f_22141_");
                 f.setAccessible(true);
                 EZFIX$SUPPLIER_FIELD = f;
             }

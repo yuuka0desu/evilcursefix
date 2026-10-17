@@ -2,6 +2,7 @@ package com.example.ezfix.mixin;
 
 import net.minecraft.world.entity.ai.attributes.AttributeMap;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -21,6 +22,18 @@ import java.util.function.Function;
  *   at AttributeMap.m_22146_(AttributeMap.java:49)
  *   at LivingEntity.m_21051_(LivingEntity.java:1827)
  *   at ParCoolStamina.tick(ParCoolStamina.java:86)   ← 每 tick 查询耐力属性
+ *
+ * ⚠ @Pseudo 是必需的，不是可选项：
+ * 本 mixin 发布于 1.6.7，首版未加 @Pseudo，导致 Android（Zalith Launcher /
+ * Mio 包装器）启动失败。原因：Mixin 在 prepare 阶段解析本 mixin 的
+ * @Mixin(value = AttributeMap.class) 时会预加载目标类；该解析链会顺带把
+ * net.minecraft.world.item.Item 拉进类加载器，抢在 tact.mixins.json 的
+ * ItemAccessor 之前，于是它抛
+ *   MixinTargetAlreadyLoadedException: target net.minecraft.world.item.Item
+ *   was loaded too early  → FATAL，启动终止。
+ * 桌面端因 mixin 准备时序更早而侥幸未触发，移动端启动链路不同必然触发。
+ * 加 @Pseudo 后 Mixin 不再于 prepare 阶段解析/加载目标类，改为类实际被
+ * 加载时再处理，彻底消除提前加载。
  *
  * 字节码实证（forge-1.20.1-47.4.0-srg.jar）：
  *   m_22146_ 的实现就是
@@ -46,7 +59,17 @@ import java.util.function.Function;
  * 语义一致性：computeIfAbsent 本就 first-write-wins 且返回 map 最终持有的
  * 实例；本实现保持这两点。
  */
-@Mixin(value = AttributeMap.class, remap = false)
+/**
+ * 双重防预加载：@Pseudo + 字符串 targets。
+ *
+ * @Pseudo：让 Mixin 不在 prepare 阶段解析/加载目标类。
+ * 字符串 targets（而非 value = AttributeMap.class）：即便某种启动器实现
+ * 在解析注解时仍会触碰 Class 字面量，字符串形式也不会促成类加载。
+ * 两者叠加，确保本 mixin 绝不把 Item / Attribute 等核心类提前拉进
+ * 类加载器，从而不再与 tact 等模组的 accessor mixin 抢时序。
+ */
+@Pseudo
+@Mixin(targets = "net.minecraft.world.entity.ai.attributes.AttributeMap", remap = false)
 public abstract class EzfixAttributeMapConcurrentModificationMixin {
 
     @Unique
