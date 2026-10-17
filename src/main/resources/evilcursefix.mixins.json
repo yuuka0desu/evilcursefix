@@ -33,6 +33,7 @@
     "EzfixServerHeartbeatMixin",
     "CuriosTagKeyCacheMixin",
     "EzfixAttributeMapNullGuardMixin",
+    "EzfixAttributeMapConcurrentModificationMixin",
     "EzfixArmorPiercingGuardMixin",
     "EzfixSlashRecursionGuardMixin",
     "EzfixHighfrequencyRecursionGuardMixin",

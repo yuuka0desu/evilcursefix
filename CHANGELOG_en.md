@@ -1,8 +1,30 @@
 # Evil Curse Fix — Changelog (English)
 
-Covers every release from **1.0.0** to **1.6.3**.
+Covers every release from **1.0.0** to **1.6.4**.
 
 ---
+
+## 1.6.4
+- **Fixed `ConcurrentModificationException` in `AttributeMap.getInstance`** (client
+  crash "Ticking entity", 2026-10-17):
+  - **Crash chain**: `ParCoolStamina.tick` → `LivingEntity.getAttribute` →
+    `AttributeMap.m_22146_` → `HashMap.computeIfAbsent` → CME.
+  - **Root cause (bytecode-verified against forge-1.20.1-47.4.0-srg.jar)**:
+    `m_22146_` is literally `f_22139_.computeIfAbsent(attribute, this::m_22187_)`,
+    where `f_22139_` is a plain `HashMap` (from `Maps.newHashMap()`) and `m_22187_`
+    calls `AttributeSupplier.m_22250_(consumer, attribute)` to build the
+    `AttributeInstance`. Because `HashMap.computeIfAbsent` bumps `modCount` while
+    resolving the mapping function, any re-entrant read/write of the same map from
+    within that callback chain (attributeslib / revelationfix / tcc mixin hooks)
+    throws CME. Players carrying dozens of additional attributes hit this path
+    frequently when an attribute is first accessed.
+  - **Fix**: `EzfixAttributeMapConcurrentModificationMixin` redirects that
+    `computeIfAbsent` call with an equivalent "get → create outside the map → put"
+    sequence. The mapping function now runs outside `computeIfAbsent`'s internal
+    computation state, so re-entrant map access can no longer corrupt its
+    bookkeeping. Semantics preserved: first-write-wins, returns the instance the
+    map finally holds. Recovered CMEs (if any remain deeper in the callback chain)
+    are logged once per call site instead of crashing.
 
 ## 1.6.3
 - **Fixed the Curios TagKey storm that freezes the render thread** (the 1.4.11 fix
